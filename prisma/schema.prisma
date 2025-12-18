@@ -8,6 +8,9 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  // For Turso, we use adapter in runtime, but need file: for Prisma validation
+  // Set DATABASE_URL to a dummy file: URL (or actual file: URL for local dev)
+  // For production with Turso, set TURSO_DATABASE_URL with libsql:// URL
   url      = env("DATABASE_URL")
 }
 

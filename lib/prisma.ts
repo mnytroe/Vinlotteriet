@@ -8,17 +8,19 @@ const globalForPrisma = globalThis as unknown as {
 
 // Parse DATABASE_URL to create libsql client
 function getLibSqlClient() {
-  const url = process.env.DATABASE_URL
-  if (!url) {
-    throw new Error('DATABASE_URL is not set')
+  // For Turso, we need to use TURSO_DATABASE_URL or parse from DATABASE_URL
+  // Prisma schema validates DATABASE_URL as file:, but we override with adapter
+  const tursoUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
+  if (!tursoUrl) {
+    throw new Error('DATABASE_URL or TURSO_DATABASE_URL is not set')
   }
 
   // Check if it's a libsql:// URL (Turso) or file:// URL (local SQLite)
-  if (url.startsWith('libsql://')) {
+  if (tursoUrl.startsWith('libsql://')) {
     // Turso database - parse the full connection string
     try {
       // Parse libsql:// URL manually since it's not a standard protocol
-      const urlWithoutProtocol = url.replace('libsql://', 'https://')
+      const urlWithoutProtocol = tursoUrl.replace('libsql://', 'https://')
       const urlObj = new URL(urlWithoutProtocol)
       const authToken = urlObj.searchParams.get('authToken')
       
@@ -35,8 +37,8 @@ function getLibSqlClient() {
       // Fallback to default PrismaClient
       return undefined
     }
-  } else if (url.startsWith('file:')) {
-    // Local SQLite - use default PrismaClient
+  } else if (tursoUrl.startsWith('file:')) {
+    // Local SQLite - use default PrismaClient (no adapter needed)
     return undefined
   } else {
     // Unknown format, try default
