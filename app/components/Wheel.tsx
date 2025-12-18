@@ -73,10 +73,24 @@ export default function Wheel({
     setIsSpinning(true)
     onSpinStart()
 
-    // Random rotation (multiple full turns + random final position)
-    const spins = 8 + Math.random() * 7 // 8-15 full rotations for more drama
-    const randomFinalAngle = Math.random() * 360
-    const totalRotation = rotation + spins * 360 + randomFinalAngle
+    // Calculate final angle first (before animation)
+    // We want to land on a random segment, so calculate which one
+    const targetSegmentIndex = Math.floor(Math.random() * randomizedSegments.length)
+    
+    // Each segment has a center angle. Pointer is at top (0° or 360°)
+    // Segments start at -90° (top) and go clockwise
+    // To land on a specific segment, we need its center angle at the top
+    const targetSegmentCenterAngle = (targetSegmentIndex + 0.5) * segmentAngle - 90
+    
+    // Calculate how much to rotate to get this segment to the top
+    // Current rotation mod 360 gives us where we are
+    const currentNormalized = ((rotation % 360) + 360) % 360
+    // We need to rotate so that targetSegmentCenterAngle ends up at 0° (top)
+    const angleToRotate = 360 - targetSegmentCenterAngle
+    
+    // Add multiple full rotations for drama (8-15 rotations)
+    const spins = 8 + Math.random() * 7
+    const totalRotation = currentNormalized + spins * 360 + angleToRotate
 
     const startTime = Date.now()
     const duration = 5000 // 5 seconds for more suspense
@@ -87,36 +101,34 @@ export default function Wheel({
       const progress = Math.min(elapsed / duration, 1)
 
       // Custom easing: fast start, slow end (more dramatic)
-      // Cubic ease-out with a stronger curve
       let easeOut
       if (progress < 0.7) {
-        // Fast spinning phase
-        easeOut = 1 - Math.pow(1 - (progress / 0.7), 2)
+        // Fast spinning phase (linear)
+        easeOut = progress / 0.7
       } else {
-        // Slow deceleration phase
+        // Slow deceleration phase (strong ease-out)
         const slowProgress = (progress - 0.7) / 0.3
-        easeOut = 0.51 + 0.49 * (1 - Math.pow(1 - slowProgress, 4))
+        easeOut = 0.7 + 0.3 * (1 - Math.pow(1 - slowProgress, 3))
       }
       
       const currentRotation = startRotation + (totalRotation - startRotation) * easeOut
-
       setRotation(currentRotation)
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
       } else {
-        // Calculate winner
-        const normalizedRotation = ((360 - (totalRotation % 360)) % 360) + 180
-        const winningSegmentIndex = Math.floor(
-          (normalizedRotation % 360) / segmentAngle
-        ) % randomizedSegments.length
-        const winner = randomizedSegments[winningSegmentIndex]
+        // Set final rotation exactly
+        setRotation(startRotation + totalRotation)
+        
+        // We already calculated the winner before spinning
+        const winner = randomizedSegments[targetSegmentIndex]
 
         // Cancel any existing animation frame
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current)
         }
         setIsSpinning(false)
+        
         if (winner) {
           setTimeout(() => {
             onSpinComplete(winner)
