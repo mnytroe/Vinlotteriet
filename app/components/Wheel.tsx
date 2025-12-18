@@ -141,13 +141,14 @@ export default function Wheel({
     return `M ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`
   }
 
-  const getSegmentColor = (index: number) => {
+  const getSegmentColor = (participant: Participant) => {
     const colors = [
       '#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA',
       '#00ACC1', '#FFB300', '#5E35B1', '#D81B60', '#00897B',
       '#3949AB', '#C0CA33', '#6D4C41', '#039BE5', '#7CB342',
     ]
-    return colors[index % colors.length]
+    // Use employeeId to ensure same person always gets same color
+    return colors[participant.employeeId % colors.length]
   }
 
   const getSegmentLabelPosition = (index: number, radius: number) => {
@@ -196,7 +197,7 @@ export default function Wheel({
               <g key={index}>
                 <path
                   d={getSegmentPath(index, outerRadius)}
-                  fill={getSegmentColor(index)}
+                  fill={getSegmentColor(participant)}
                   stroke="#fff"
                   strokeWidth="2"
                 />
