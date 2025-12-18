@@ -29,6 +29,7 @@ export default function Wheel({
   const [isSpinning, setIsSpinning] = useState(false)
   const wheelRef = useRef<SVGSVGElement>(null)
   const animationRef = useRef<number>()
+  const isRandomizingRef = useRef(false)
 
   // Expand participants based on tickets
   const expandedSegments = participants.flatMap((p) =>
@@ -50,8 +51,10 @@ export default function Wheel({
   }, [participants])
 
   const randomizeSegments = () => {
-    // Don't randomize while spinning - only check isSpinning, not external spinning prop
-    if (isSpinning) return
+    // Don't randomize while spinning or if already randomizing
+    if (isSpinning || isRandomizingRef.current) return
+    
+    isRandomizingRef.current = true
     
     const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
     // Better shuffle algorithm (Fisher-Yates)
@@ -63,6 +66,11 @@ export default function Wheel({
     setRandomizedSegments(shuffled)
     // Also randomize starting position
     setRotation(Math.random() * 360)
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isRandomizingRef.current = false
+    }, 100)
   }
 
   const spin = () => {
@@ -71,24 +79,30 @@ export default function Wheel({
     setIsSpinning(true)
     onSpinStart()
 
-    // Calculate final angle first (before animation)
-    // We want to land on a random segment, so calculate which one
+    // Pick a random segment to win
     const targetSegmentIndex = Math.floor(Math.random() * randomizedSegments.length)
     
-    // Each segment has a center angle. Pointer is at top (0° or 360°)
     // Segments start at -90° (top) and go clockwise
-    // To land on a specific segment, we need its center angle at the top
-    const targetSegmentCenterAngle = (targetSegmentIndex + 0.5) * segmentAngle - 90
+    // Each segment i has center at: -90° + (i + 0.5) * segmentAngle
+    // Pointer is at top (0° or 360°)
+    // After rotation R, segment i's center is at: -90° + (i + 0.5) * segmentAngle + R
+    // We want this to be 0° (mod 360), so:
+    // -90° + (i + 0.5) * segmentAngle + R ≡ 0° (mod 360)
+    // R ≡ 90° - (i + 0.5) * segmentAngle (mod 360)
     
-    // Calculate how much to rotate to get this segment to the top
-    // Current rotation mod 360 gives us where we are
+    const targetSegmentCenterAngle = -90 + (targetSegmentIndex + 0.5) * segmentAngle
+    // We want the wheel rotated so target segment center is at 0° (top where pointer is)
+    // So final rotation should make: targetSegmentCenterAngle + finalRotation ≡ 0 (mod 360)
+    // finalRotation ≡ -targetSegmentCenterAngle (mod 360)
+    // But we need to account for current rotation and add full spins
     const currentNormalized = ((rotation % 360) + 360) % 360
-    // We need to rotate so that targetSegmentCenterAngle ends up at 0° (top)
-    const angleToRotate = 360 - targetSegmentCenterAngle
+    
+    // Calculate angle needed to reach target from current position
+    const angleToTarget = (360 - targetSegmentCenterAngle) % 360
     
     // Add multiple full rotations for drama (8-15 rotations)
     const spins = 8 + Math.random() * 7
-    const totalRotation = currentNormalized + spins * 360 + angleToRotate
+    const totalRotation = currentNormalized + spins * 360 + angleToTarget
 
     const startTime = Date.now()
     const duration = 5000 // 5 seconds for more suspense
@@ -108,11 +122,24 @@ export default function Wheel({
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
       } else {
-        // Final rotation should already be set by the animation
-        // Don't set it again to avoid jumping
+        // Ensure final rotation is exactly correct
+        const finalRotation = startRotation + totalRotation
+        setRotation(finalRotation)
         
-        // We already calculated the winner before spinning
-        const winner = randomizedSegments[targetSegmentIndex]
+        // Verify winner calculation based on final rotation
+        // Final rotation mod 360 gives us where segment 0's center is
+        const finalNormalized = ((finalRotation % 360) + 360) % 360
+        // Segment 0 center at finalNormalized, so segment i center at finalNormalized - 90 + (i+0.5)*segmentAngle
+        // We want to find which segment has center at 0° (top)
+        // 0 = finalNormalized - 90 + (i+0.5)*segmentAngle
+        // (i+0.5)*segmentAngle = 90 - finalNormalized
+        // i = (90 - finalNormalized) / segmentAngle - 0.5
+        
+        let calculatedIndex = Math.floor((90 - finalNormalized) / segmentAngle + 0.5)
+        calculatedIndex = ((calculatedIndex % randomizedSegments.length) + randomizedSegments.length) % randomizedSegments.length
+        
+        // Use the calculated winner (should match targetSegmentIndex)
+        const winner = randomizedSegments[calculatedIndex] || randomizedSegments[targetSegmentIndex]
 
         // Cancel any existing animation frame
         if (animationRef.current) {
