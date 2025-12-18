@@ -51,7 +51,7 @@ export default function Wheel({
 
   const randomizeSegments = () => {
     // Don't randomize while spinning
-    if (isSpinning) return
+    if (isSpinning || spinning) return
     
     const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
     // Better shuffle algorithm (Fisher-Yates)
@@ -61,10 +61,8 @@ export default function Wheel({
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     setRandomizedSegments(shuffled)
-    // Also randomize starting position (but keep current rotation if spinning just finished)
-    if (!isSpinning) {
-      setRotation(Math.random() * 360)
-    }
+    // Also randomize starting position
+    setRotation(Math.random() * 360)
   }
 
   const spin = () => {
@@ -100,16 +98,9 @@ export default function Wheel({
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
 
-      // Custom easing: fast start, slow end (more dramatic)
-      let easeOut
-      if (progress < 0.7) {
-        // Fast spinning phase (linear)
-        easeOut = progress / 0.7
-      } else {
-        // Slow deceleration phase (strong ease-out)
-        const slowProgress = (progress - 0.7) / 0.3
-        easeOut = 0.7 + 0.3 * (1 - Math.pow(1 - slowProgress, 3))
-      }
+      // Smooth ease-out: starts fast, gradually slows down
+      // Using cubic ease-out for natural deceleration
+      const easeOut = 1 - Math.pow(1 - progress, 3)
       
       const currentRotation = startRotation + (totalRotation - startRotation) * easeOut
       setRotation(currentRotation)
