@@ -47,10 +47,21 @@ export default function SessionSetup({ onSessionStart }: SessionSetupProps) {
   const fetchEmployees = async () => {
     try {
       const res = await fetch('/api/employees')
+      if (!res.ok) {
+        console.error('Failed to fetch employees:', res.status)
+        setEmployees([])
+        return
+      }
       const data = await res.json()
-      setEmployees(data)
+      if (Array.isArray(data)) {
+        setEmployees(data)
+      } else {
+        console.error('Invalid data format:', data)
+        setEmployees([])
+      }
     } catch (error) {
       console.error('Error fetching employees:', error)
+      setEmployees([])
     }
   }
 

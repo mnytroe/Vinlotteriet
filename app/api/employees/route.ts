@@ -7,10 +7,15 @@ export async function GET() {
       orderBy: { name: 'asc' },
     })
     return NextResponse.json(employees)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching employees:', error)
+    // If database doesn't exist or tables not created, return empty array
+    if (error.code === 'P1001' || error.code === 'P2021') {
+      console.log('Database not initialized, returning empty array')
+      return NextResponse.json([])
+    }
     return NextResponse.json(
-      { error: 'Failed to fetch employees' },
+      { error: 'Failed to fetch employees', details: error.message },
       { status: 500 }
     )
   }
