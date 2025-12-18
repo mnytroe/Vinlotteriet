@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 interface Participant {
   id: number
@@ -27,137 +27,93 @@ export default function Wheel({
 }: WheelProps) {
   const [rotation, setRotation] = useState(0)
   const [isSpinning, setIsSpinning] = useState(false)
-  const wheelRef = useRef<SVGSVGElement>(null)
-  const animationRef = useRef<number>()
-  const isRandomizingRef = useRef(false)
+  const [segments, setSegments] = useState<Participant[]>([])
+  const animationRef = useRef<number | null>(null)
 
-  // Expand participants based on tickets
-  const expandedSegments = participants.flatMap((p) =>
-    Array(p.tickets).fill(p)
-  )
+  const segmentAngle = segments.length > 0 ? 360 / segments.length : 0
 
-  const totalSegments = expandedSegments.length
-  const segmentAngle = 360 / totalSegments
-
-  // Randomize order
-  const [randomizedSegments, setRandomizedSegments] = useState<Participant[]>(
-    []
-  )
-
+  // Initialize segments when participants change
   useEffect(() => {
     if (participants.length > 0) {
-      randomizeSegments()
+      const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
+      shuffleArray(expanded)
+      setSegments(expanded)
+      setRotation(Math.random() * 360)
     }
   }, [participants])
 
-  const randomizeSegments = () => {
-    // Don't randomize while spinning or if already randomizing
-    if (isSpinning || isRandomizingRef.current) return
-    
-    isRandomizingRef.current = true
-    
-    const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
-    // Better shuffle algorithm (Fisher-Yates)
-    const shuffled = [...expanded]
-    for (let i = shuffled.length - 1; i > 0; i--) {
+  // Fisher-Yates shuffle
+  const shuffleArray = (array: Participant[]) => {
+    for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      [array[i], array[j]] = [array[j], array[i]]
     }
-    setRandomizedSegments(shuffled)
-    // Also randomize starting position
-    setRotation(Math.random() * 360)
-    
-    // Reset flag after a short delay
-    setTimeout(() => {
-      isRandomizingRef.current = false
-    }, 100)
   }
 
-  const spin = () => {
-    if (isSpinning || spinning) return
+  const randomize = useCallback(() => {
+    if (isSpinning) return
+    
+    const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
+    shuffleArray(expanded)
+    setSegments([...expanded])
+    setRotation(Math.random() * 360)
+  }, [isSpinning, participants])
+
+  const spin = useCallback(() => {
+    if (isSpinning || spinning || segments.length === 0) return
 
     setIsSpinning(true)
     onSpinStart()
 
-    // Pick a random segment to win
-    const targetSegmentIndex = Math.floor(Math.random() * randomizedSegments.length)
+    // Pick a random winner index
+    const winnerIndex = Math.floor(Math.random() * segments.length)
     
-    // Segments start at -90° (top) and go clockwise
-    // Each segment i has center at: -90° + (i + 0.5) * segmentAngle
-    // Pointer is at top (0° or 360°)
-    // After rotation R, segment i's center is at: -90° + (i + 0.5) * segmentAngle + R
-    // We want this to be 0° (mod 360), so:
-    // -90° + (i + 0.5) * segmentAngle + R ≡ 0° (mod 360)
-    // R ≡ 90° - (i + 0.5) * segmentAngle (mod 360)
+    // Calculate final rotation to land on winner
+    // Segment 0 is at top when rotation = 0
+    // To land on segment i, we need to rotate so segment i is at top
+    // That means rotating by: i * segmentAngle degrees (to bring segment i to where segment 0 was)
+    // But since rotation is clockwise, we need: 360 - (winnerIndex * segmentAngle)
+    // Plus we add some random offset within the segment (but not too close to edges)
+    const segmentCenter = winnerIndex * segmentAngle + segmentAngle / 2
+    const targetAngle = 360 - segmentCenter
     
-    const targetSegmentCenterAngle = -90 + (targetSegmentIndex + 0.5) * segmentAngle
-    // We want the wheel rotated so target segment center is at 0° (top where pointer is)
-    // So final rotation should make: targetSegmentCenterAngle + finalRotation ≡ 0 (mod 360)
-    // finalRotation ≡ -targetSegmentCenterAngle (mod 360)
-    // But we need to account for current rotation and add full spins
-    const currentNormalized = ((rotation % 360) + 360) % 360
+    // Add full rotations for drama
+    const fullRotations = 5 + Math.floor(Math.random() * 5) // 5-9 full rotations
+    const finalRotation = rotation + fullRotations * 360 + targetAngle - (rotation % 360)
     
-    // Calculate angle needed to reach target from current position
-    const angleToTarget = (360 - targetSegmentCenterAngle) % 360
-    
-    // Add multiple full rotations for drama (8-15 rotations)
-    const spins = 8 + Math.random() * 7
-    const totalRotation = currentNormalized + spins * 360 + angleToTarget
-
-    const startTime = Date.now()
-    const duration = 5000 // 5 seconds for more suspense
+    const duration = 5000
+    const startTime = performance.now()
     const startRotation = rotation
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime
       const progress = Math.min(elapsed / duration, 1)
 
-      // Smooth ease-out: starts fast, gradually slows down
-      // Using cubic ease-out for natural deceleration
+      // Cubic ease-out: starts fast, slows down
       const easeOut = 1 - Math.pow(1 - progress, 3)
       
-      const currentRotation = startRotation + (totalRotation - startRotation) * easeOut
+      const currentRotation = startRotation + (finalRotation - startRotation) * easeOut
       setRotation(currentRotation)
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
       } else {
-        // Ensure final rotation is exactly correct
-        const finalRotation = startRotation + totalRotation
+        // Animation complete
         setRotation(finalRotation)
-        
-        // Verify winner calculation based on final rotation
-        // Final rotation mod 360 gives us where segment 0's center is
-        const finalNormalized = ((finalRotation % 360) + 360) % 360
-        // Segment 0 center at finalNormalized, so segment i center at finalNormalized - 90 + (i+0.5)*segmentAngle
-        // We want to find which segment has center at 0° (top)
-        // 0 = finalNormalized - 90 + (i+0.5)*segmentAngle
-        // (i+0.5)*segmentAngle = 90 - finalNormalized
-        // i = (90 - finalNormalized) / segmentAngle - 0.5
-        
-        let calculatedIndex = Math.floor((90 - finalNormalized) / segmentAngle + 0.5)
-        calculatedIndex = ((calculatedIndex % randomizedSegments.length) + randomizedSegments.length) % randomizedSegments.length
-        
-        // Use the calculated winner (should match targetSegmentIndex)
-        const winner = randomizedSegments[calculatedIndex] || randomizedSegments[targetSegmentIndex]
-
-        // Cancel any existing animation frame
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current)
-        }
         setIsSpinning(false)
         
+        // Announce winner
+        const winner = segments[winnerIndex]
         if (winner) {
-          setTimeout(() => {
-            onSpinComplete(winner)
-          }, 300)
+          setTimeout(() => onSpinComplete(winner), 200)
         }
       }
     }
 
-    animate()
-  }
+    animationRef.current = requestAnimationFrame(animate)
+  }, [isSpinning, spinning, segments, rotation, segmentAngle, onSpinStart, onSpinComplete])
 
+  // Cleanup animation on unmount
   useEffect(() => {
     return () => {
       if (animationRef.current) {
@@ -169,46 +125,41 @@ export default function Wheel({
   const getSegmentPath = (index: number, outerRadius: number) => {
     const startAngle = (index * segmentAngle - 90) * (Math.PI / 180)
     const endAngle = ((index + 1) * segmentAngle - 90) * (Math.PI / 180)
-    const innerRadius = 20
+    const innerRadius = 30
 
     const x1 = 250 + outerRadius * Math.cos(startAngle)
     const y1 = 250 + outerRadius * Math.sin(startAngle)
     const x2 = 250 + outerRadius * Math.cos(endAngle)
     const y2 = 250 + outerRadius * Math.sin(endAngle)
-
     const x3 = 250 + innerRadius * Math.cos(endAngle)
     const y3 = 250 + innerRadius * Math.sin(endAngle)
     const x4 = 250 + innerRadius * Math.cos(startAngle)
     const y4 = 250 + innerRadius * Math.sin(startAngle)
 
-    return `M 250 250 L ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 0 0 ${x4} ${y4} Z`
+    const largeArc = segmentAngle > 180 ? 1 : 0
+
+    return `M ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`
   }
 
   const getSegmentColor = (index: number) => {
     const colors = [
-      '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-      '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52BE80',
-      '#EC7063', '#5DADE2', '#58D68D', '#F4D03F', '#AF7AC5',
+      '#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA',
+      '#00ACC1', '#FFB300', '#5E35B1', '#D81B60', '#00897B',
+      '#3949AB', '#C0CA33', '#6D4C41', '#039BE5', '#7CB342',
     ]
     return colors[index % colors.length]
   }
 
-  const getSegmentLabel = (index: number) => {
-    if (index >= randomizedSegments.length) return ''
-    const participant = randomizedSegments[index]
-    return participant.employee.name.substring(0, 10)
-  }
-
   const getSegmentLabelPosition = (index: number, radius: number) => {
     const angle = ((index + 0.5) * segmentAngle - 90) * (Math.PI / 180)
-    const labelRadius = radius * 0.7
+    const labelRadius = radius * 0.65
     const x = 250 + labelRadius * Math.cos(angle)
     const y = 250 + labelRadius * Math.sin(angle)
-    const rotation = (index + 0.5) * segmentAngle
-    return { x, y, rotation }
+    const textRotation = (index + 0.5) * segmentAngle
+    return { x, y, textRotation }
   }
 
-  if (randomizedSegments.length === 0) {
+  if (segments.length === 0) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
         <p className="text-gray-500">Ingen deltakere valgt</p>
@@ -221,22 +172,26 @@ export default function Wheel({
   return (
     <div className="flex flex-col items-center">
       <div className="relative">
+        {/* Pointer */}
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10" style={{ marginTop: '-5px' }}>
+          <div className="w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] border-t-red-600 drop-shadow-lg"></div>
+        </div>
+        
+        {/* Wheel */}
         <svg
-          ref={wheelRef}
           width="500"
           height="500"
-          className="transform"
           style={{
             transform: `rotate(${rotation}deg)`,
             transformOrigin: 'center',
-            transition: isSpinning ? 'none' : 'transform 0.05s ease-out',
           }}
         >
-          {randomizedSegments.map((_, index) => {
-            const { x, y, rotation: labelRotation } = getSegmentLabelPosition(
-              index,
-              outerRadius
-            )
+          {/* Outer ring */}
+          <circle cx="250" cy="250" r="210" fill="#333" />
+          
+          {/* Segments */}
+          {segments.map((participant, index) => {
+            const { x, y, textRotation } = getSegmentLabelPosition(index, outerRadius)
             return (
               <g key={index}>
                 <path
@@ -250,38 +205,37 @@ export default function Wheel({
                   y={y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="text-xs font-semibold fill-white"
-                  transform={`rotate(${labelRotation}, ${x}, ${y})`}
-                  style={{
-                    fontSize: '12px',
-                    pointerEvents: 'none',
-                  }}
+                  fill="white"
+                  fontWeight="bold"
+                  fontSize={segments.length > 10 ? '10px' : '12px'}
+                  transform={`rotate(${textRotation}, ${x}, ${y})`}
+                  style={{ pointerEvents: 'none', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
                 >
-                  {getSegmentLabel(index)}
+                  {participant.employee.name.substring(0, 8)}
                 </text>
               </g>
             )
           })}
+          
+          {/* Center circle */}
+          <circle cx="250" cy="250" r="30" fill="#333" stroke="#fff" strokeWidth="3" />
         </svg>
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2">
-          <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-red-600"></div>
-        </div>
       </div>
 
-      <div className="mt-6 flex gap-4">
+      <div className="mt-8 flex gap-4">
         <button
-          onClick={randomizeSegments}
-          disabled={isSpinning || randomizedSegments.length === 0}
-          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
+          onClick={randomize}
+          disabled={isSpinning}
+          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold transition-all active:scale-95"
         >
           Randomiser
         </button>
         <button
           onClick={spin}
-          disabled={isSpinning || spinning || randomizedSegments.length === 0}
-          className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg"
+          disabled={isSpinning || segments.length === 0}
+          className="px-10 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg transition-all active:scale-95"
         >
-          {isSpinning ? 'Spinner...' : 'Spinn!'}
+          {isSpinning ? 'Spinner...' : 'SPINN!'}
         </button>
       </div>
     </div>
