@@ -17,10 +17,17 @@ function getLibSqlClient() {
   if (url.startsWith('libsql://')) {
     // Turso database - parse the full connection string
     try {
-      const urlObj = new URL(url)
+      // Parse libsql:// URL manually since it's not a standard protocol
+      const urlWithoutProtocol = url.replace('libsql://', 'https://')
+      const urlObj = new URL(urlWithoutProtocol)
+      const authToken = urlObj.searchParams.get('authToken')
+      
+      // Reconstruct the libsql URL without query params
+      const dbUrl = `libsql://${urlObj.host}${urlObj.pathname}`
+      
       const client = createClient({
-        url: urlObj.origin + urlObj.pathname,
-        authToken: urlObj.searchParams.get('authToken') || undefined,
+        url: dbUrl,
+        authToken: authToken || undefined,
       })
       return new PrismaLibSQL(client)
     } catch (error) {
