@@ -64,8 +64,11 @@ npm run dev
    - Kopier innholdet fra `init-db.sql` filen og kjør den
 4. Push kode til GitHub
 5. Koble GitHub repository til Vercel
-6. Legg til environment variable i Vercel:
-   - `DATABASE_URL`: Turso connection string
+6. **VIKTIG: Legg til environment variables i Vercel:**
+   - `DATABASE_URL`: Sett til `file:./dummy.db` (dummy verdi for Prisma validering)
+   - `TURSO_DATABASE_URL`: Din Turso connection string (libsql://...)
+   
+   **Alternativt:** Hvis du kun setter `DATABASE_URL` til Turso connection string, vil Prisma feile ved validering. Bruk to separate variabler som vist over.
 7. Deploy!
 
 Vercel vil automatisk deploye ved push til main branch.

@@ -8,9 +8,11 @@ const globalForPrisma = globalThis as unknown as {
 
 // Parse DATABASE_URL to create libsql client
 function getLibSqlClient() {
-  // For Turso, we need to use TURSO_DATABASE_URL or parse from DATABASE_URL
+  // For Turso, prefer TURSO_DATABASE_URL if set (production)
+  // Fallback to DATABASE_URL if it's a libsql:// URL (for convenience)
   // Prisma schema validates DATABASE_URL as file:, but we override with adapter
-  const tursoUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
+  const tursoUrl = process.env.TURSO_DATABASE_URL || 
+    (process.env.DATABASE_URL?.startsWith('libsql://') ? process.env.DATABASE_URL : null)
   if (!tursoUrl) {
     throw new Error('DATABASE_URL or TURSO_DATABASE_URL is not set')
   }
