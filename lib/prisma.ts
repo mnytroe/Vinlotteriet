@@ -15,12 +15,19 @@ function getLibSqlClient() {
 
   // Check if it's a libsql:// URL (Turso) or file:// URL (local SQLite)
   if (url.startsWith('libsql://')) {
-    // Turso database
-    const client = createClient({
-      url: url.split('?')[0], // Remove query params for URL
-      authToken: new URL(url).searchParams.get('authToken') || undefined,
-    })
-    return new PrismaLibSQL(client)
+    // Turso database - parse the full connection string
+    try {
+      const urlObj = new URL(url)
+      const client = createClient({
+        url: urlObj.origin + urlObj.pathname,
+        authToken: urlObj.searchParams.get('authToken') || undefined,
+      })
+      return new PrismaLibSQL(client)
+    } catch (error) {
+      console.error('Error parsing DATABASE_URL:', error)
+      // Fallback to default PrismaClient
+      return undefined
+    }
   } else if (url.startsWith('file:')) {
     // Local SQLite - use default PrismaClient
     return undefined
