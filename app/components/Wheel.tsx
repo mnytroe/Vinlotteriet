@@ -50,8 +50,8 @@ export default function Wheel({
   }, [participants])
 
   const randomizeSegments = () => {
-    // Don't randomize while spinning
-    if (isSpinning || spinning) return
+    // Don't randomize while spinning - only check isSpinning, not external spinning prop
+    if (isSpinning) return
     
     const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
     // Better shuffle algorithm (Fisher-Yates)
@@ -108,8 +108,8 @@ export default function Wheel({
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
       } else {
-        // Set final rotation exactly
-        setRotation(startRotation + totalRotation)
+        // Final rotation should already be set by the animation
+        // Don't set it again to avoid jumping
         
         // We already calculated the winner before spinning
         const winner = randomizedSegments[targetSegmentIndex]
@@ -202,7 +202,7 @@ export default function Wheel({
           style={{
             transform: `rotate(${rotation}deg)`,
             transformOrigin: 'center',
-            transition: isSpinning ? 'none' : 'transform 0.1s ease-out',
+            transition: isSpinning ? 'none' : 'transform 0.05s ease-out',
           }}
         >
           {randomizedSegments.map((_, index) => {
@@ -244,7 +244,7 @@ export default function Wheel({
       <div className="mt-6 flex gap-4">
         <button
           onClick={randomizeSegments}
-          disabled={isSpinning}
+          disabled={isSpinning || randomizedSegments.length === 0}
           className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
         >
           Randomiser
