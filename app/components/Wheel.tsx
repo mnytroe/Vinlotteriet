@@ -50,11 +50,21 @@ export default function Wheel({
   }, [participants])
 
   const randomizeSegments = () => {
+    // Don't randomize while spinning
+    if (isSpinning) return
+    
     const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
-    const shuffled = [...expanded].sort(() => Math.random() - 0.5)
+    // Better shuffle algorithm (Fisher-Yates)
+    const shuffled = [...expanded]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
     setRandomizedSegments(shuffled)
-    // Also randomize starting position
-    setRotation(Math.random() * 360)
+    // Also randomize starting position (but keep current rotation if spinning just finished)
+    if (!isSpinning) {
+      setRotation(Math.random() * 360)
+    }
   }
 
   const spin = () => {
@@ -64,20 +74,30 @@ export default function Wheel({
     onSpinStart()
 
     // Random rotation (multiple full turns + random final position)
-    const spins = 5 + Math.random() * 5 // 5-10 full rotations
+    const spins = 8 + Math.random() * 7 // 8-15 full rotations for more drama
     const randomFinalAngle = Math.random() * 360
     const totalRotation = rotation + spins * 360 + randomFinalAngle
 
     const startTime = Date.now()
-    const duration = 3000 // 3 seconds
+    const duration = 5000 // 5 seconds for more suspense
     const startRotation = rotation
 
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
 
-      // Easing function (ease-out)
-      const easeOut = 1 - Math.pow(1 - progress, 3)
+      // Custom easing: fast start, slow end (more dramatic)
+      // Cubic ease-out with a stronger curve
+      let easeOut
+      if (progress < 0.7) {
+        // Fast spinning phase
+        easeOut = 1 - Math.pow(1 - (progress / 0.7), 2)
+      } else {
+        // Slow deceleration phase
+        const slowProgress = (progress - 0.7) / 0.3
+        easeOut = 0.51 + 0.49 * (1 - Math.pow(1 - slowProgress, 4))
+      }
+      
       const currentRotation = startRotation + (totalRotation - startRotation) * easeOut
 
       setRotation(currentRotation)
@@ -92,11 +112,15 @@ export default function Wheel({
         ) % randomizedSegments.length
         const winner = randomizedSegments[winningSegmentIndex]
 
+        // Cancel any existing animation frame
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current)
+        }
         setIsSpinning(false)
         if (winner) {
           setTimeout(() => {
             onSpinComplete(winner)
-          }, 500)
+          }, 300)
         }
       }
     }
@@ -171,10 +195,11 @@ export default function Wheel({
           ref={wheelRef}
           width="500"
           height="500"
-          className="transform transition-transform duration-75"
+          className="transform"
           style={{
             transform: `rotate(${rotation}deg)`,
             transformOrigin: 'center',
+            transition: isSpinning ? 'none' : 'transform 0.1s ease-out',
           }}
         >
           {randomizedSegments.map((_, index) => {
@@ -216,8 +241,8 @@ export default function Wheel({
       <div className="mt-6 flex gap-4">
         <button
           onClick={randomizeSegments}
-          disabled={isSpinning || spinning}
-          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+          disabled={isSpinning}
+          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
         >
           Randomiser
         </button>
