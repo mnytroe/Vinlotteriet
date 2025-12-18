@@ -122,8 +122,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">🎰 Vinlotteriet 🎰</h1>
-          <p className="text-gray-600">Lotteri for jobben</p>
+          <h1 className="text-4xl font-bold text-gray-900">🎰 Vinlotteriet 🎰</h1>
         </header>
 
         <nav className="flex justify-center gap-4 mb-8">
