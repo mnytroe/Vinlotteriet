@@ -109,12 +109,13 @@ export default function EmployeeManager() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Navn på ansatt"
+            maxLength={50}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading}
           />
           <button
             type="submit"
-            disabled={loading || !newName.trim()}
+            disabled={loading || newName.trim().length < 2}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             Legg til

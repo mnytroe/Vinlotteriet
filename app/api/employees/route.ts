@@ -28,14 +28,40 @@ export async function POST(request: NextRequest) {
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json(
-        { error: 'Name is required' },
+        { error: 'Navn er påkrevd' },
+        { status: 400 }
+      )
+    }
+
+    const trimmedName = name.trim()
+
+    // Validate name length (2-50 characters)
+    if (trimmedName.length < 2) {
+      return NextResponse.json(
+        { error: 'Navn må være minst 2 tegn' },
+        { status: 400 }
+      )
+    }
+
+    if (trimmedName.length > 50) {
+      return NextResponse.json(
+        { error: 'Navn kan ikke være mer enn 50 tegn' },
+        { status: 400 }
+      )
+    }
+
+    // Validate characters (letters, spaces, hyphens, apostrophes)
+    const validNamePattern = /^[\p{L}\s\-']+$/u
+    if (!validNamePattern.test(trimmedName)) {
+      return NextResponse.json(
+        { error: 'Navn kan kun inneholde bokstaver, mellomrom, bindestrek og apostrof' },
         { status: 400 }
       )
     }
 
     const employee = await prisma.employee.create({
       data: {
-        name: name.trim(),
+        name: trimmedName,
         isActive: isActive !== undefined ? isActive : true,
       },
     })
@@ -69,7 +95,33 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updateData: any = {}
-    if (name !== undefined) updateData.name = name.trim()
+    if (name !== undefined) {
+      const trimmedName = name.trim()
+      
+      if (trimmedName.length < 2) {
+        return NextResponse.json(
+          { error: 'Navn må være minst 2 tegn' },
+          { status: 400 }
+        )
+      }
+
+      if (trimmedName.length > 50) {
+        return NextResponse.json(
+          { error: 'Navn kan ikke være mer enn 50 tegn' },
+          { status: 400 }
+        )
+      }
+
+      const validNamePattern = /^[\p{L}\s\-']+$/u
+      if (!validNamePattern.test(trimmedName)) {
+        return NextResponse.json(
+          { error: 'Navn kan kun inneholde bokstaver, mellomrom, bindestrek og apostrof' },
+          { status: 400 }
+        )
+      }
+
+      updateData.name = trimmedName
+    }
     if (isActive !== undefined) updateData.isActive = isActive
 
     const employee = await prisma.employee.update({
