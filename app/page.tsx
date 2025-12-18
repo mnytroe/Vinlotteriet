@@ -5,6 +5,7 @@ import EmployeeManager from './components/EmployeeManager'
 import SessionSetup from './components/SessionSetup'
 import Wheel from './components/Wheel'
 import WinnerDialog from './components/WinnerDialog'
+import Confetti from './components/Confetti'
 
 interface Participant {
   id: number
@@ -183,12 +184,15 @@ export default function Home() {
         </main>
 
         {winner && (
-          <WinnerDialog
-            winnerName={winner.participant.employee.name}
-            ticketsRemaining={winner.ticketsRemaining}
-            onRemoveTicket={handleRemoveTicket}
-            onKeepTicket={handleKeepTicket}
-          />
+          <>
+            <Confetti />
+            <WinnerDialog
+              winnerName={winner.participant.employee.name}
+              ticketsRemaining={winner.ticketsRemaining}
+              onRemoveTicket={handleRemoveTicket}
+              onKeepTicket={handleKeepTicket}
+            />
+          </>
         )}
       </div>
     </div>
