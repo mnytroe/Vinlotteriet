@@ -110,7 +110,7 @@ export default function EmployeeManager() {
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Navn på ansatt"
             maxLength={50}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading}
           />
           <button

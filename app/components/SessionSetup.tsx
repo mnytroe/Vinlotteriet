@@ -137,7 +137,7 @@ export default function SessionSetup({ onSessionStart }: SessionSetupProps) {
                     onChange={(e) =>
                       updateTickets(employee.id, parseInt(e.target.value))
                     }
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-center"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded text-center bg-white text-gray-900"
                   />
                 </div>
               )}

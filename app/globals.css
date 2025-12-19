@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force light mode for form elements regardless of OS preference */
+input,
+textarea,
+select {
+  color-scheme: light;
+  @apply bg-white text-gray-900;
+}
+
 body {
   @apply bg-gray-50 text-gray-900;
 }
