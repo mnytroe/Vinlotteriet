@@ -6,33 +6,18 @@ import SessionSetup from './components/SessionSetup'
 import Wheel from './components/Wheel'
 import WinnerDialog from './components/WinnerDialog'
 import Confetti from './components/Confetti'
-
-interface Participant {
-  id: number
-  employeeId: number
-  tickets: number
-  employee: {
-    id: number
-    name: string
-  }
-}
-
-interface SessionParticipant {
-  employeeId: number
-  tickets: number
-}
+import type { Participant, SessionParticipant, Winner } from '@/types'
 
 export default function Home() {
   const [view, setView] = useState<'employees' | 'setup' | 'lottery'>('employees')
   const [participants, setParticipants] = useState<Participant[]>([])
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [spinning, setSpinning] = useState(false)
-  const [winner, setWinner] = useState<{
-    participant: Participant
-    ticketsRemaining: number
-  } | null>(null)
+  const [winner, setWinner] = useState<Winner | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const handleSessionStart = async (sessionParticipants: SessionParticipant[]) => {
+    setLoading(true)
     try {
       const res = await fetch('/api/sessions', {
         method: 'POST',
@@ -54,6 +39,8 @@ export default function Home() {
     } catch (error) {
       console.error('Error starting session:', error)
       alert('Kunne ikke starte lotteri')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -68,6 +55,7 @@ export default function Home() {
   const handleRemoveTicket = async () => {
     if (!winner) return
 
+    setLoading(true)
     try {
       const res = await fetch('/api/participants', {
         method: 'PATCH',
@@ -105,6 +93,8 @@ export default function Home() {
     } catch (error) {
       console.error('Error removing ticket:', error)
       alert('Kunne ikke fjerne lodd')
+    } finally {
+      setLoading(false)
     }
   }
 

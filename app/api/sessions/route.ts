@@ -28,6 +28,37 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, participants } = body // participants: [{ employeeId, tickets }]
 
+    // Valider input
+    if (!participants || !Array.isArray(participants)) {
+      return NextResponse.json(
+        { error: 'Participants må være en array' },
+        { status: 400 }
+      )
+    }
+
+    if (participants.length === 0) {
+      return NextResponse.json(
+        { error: 'Minst én deltaker kreves' },
+        { status: 400 }
+      )
+    }
+
+    // Valider hver deltaker
+    for (const p of participants) {
+      if (typeof p.employeeId !== 'number' || p.employeeId <= 0) {
+        return NextResponse.json(
+          { error: 'Ugyldig employeeId' },
+          { status: 400 }
+        )
+      }
+      if (p.tickets !== undefined && (typeof p.tickets !== 'number' || p.tickets < 1)) {
+        return NextResponse.json(
+          { error: 'Tickets må være et positivt tall' },
+          { status: 400 }
+        )
+      }
+    }
+
     const session = await prisma.lotterySession.create({
       data: {
         name: name || null,

@@ -1,16 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-
-interface Participant {
-  id: number
-  employeeId: number
-  tickets: number
-  employee: {
-    id: number
-    name: string
-  }
-}
+import type { Participant } from '@/types'
 
 interface WheelProps {
   participants: Participant[]
@@ -36,26 +27,26 @@ export default function Wheel({
   useEffect(() => {
     if (participants.length > 0) {
       const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
-      shuffleArray(expanded)
-      setSegments(expanded)
+      setSegments(shuffleArray(expanded))
       setRotation(Math.random() * 360)
     }
   }, [participants])
 
-  // Fisher-Yates shuffle
-  const shuffleArray = (array: Participant[]) => {
-    for (let i = array.length - 1; i > 0; i--) {
+  // Fisher-Yates shuffle - returnerer ny array uten å mutere originalen
+  const shuffleArray = (array: Participant[]): Participant[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]]
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
+    return shuffled
   }
 
   const randomize = useCallback(() => {
     if (isSpinning) return
     
     const expanded = participants.flatMap((p) => Array(p.tickets).fill(p))
-    shuffleArray(expanded)
-    setSegments([...expanded])
+    setSegments(shuffleArray(expanded))
     setRotation(Math.random() * 360)
   }, [isSpinning, participants])
 
@@ -182,6 +173,8 @@ export default function Wheel({
         <svg
           width="500"
           height="500"
+          role="img"
+          aria-label={`Lykkehjul med ${segments.length} segmenter. ${isSpinning ? 'Spinner nå.' : 'Klikk SPINN for å trekke vinner.'}`}
           style={{
             transform: `rotate(${rotation}deg)`,
             transformOrigin: 'center',
@@ -227,6 +220,7 @@ export default function Wheel({
         <button
           onClick={randomize}
           disabled={isSpinning}
+          aria-label="Bland deltakerne på hjulet"
           className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold transition-all active:scale-95"
         >
           Randomiser
@@ -234,6 +228,7 @@ export default function Wheel({
         <button
           onClick={spin}
           disabled={isSpinning || segments.length === 0}
+          aria-label={isSpinning ? 'Hjulet spinner' : 'Spinn hjulet for å trekke en vinner'}
           className="px-10 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg transition-all active:scale-95"
         >
           {isSpinning ? 'Spinner...' : 'SPINN!'}

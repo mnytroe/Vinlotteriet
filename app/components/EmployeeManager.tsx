@@ -1,12 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
-interface Employee {
-  id: number
-  name: string
-  isActive: boolean
-}
+import type { Employee } from '@/types'
 
 export default function EmployeeManager() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -102,7 +97,7 @@ export default function EmployeeManager() {
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-bold mb-4">Administrer ansatte</h2>
 
-      <form onSubmit={addEmployee} className="mb-6">
+      <form onSubmit={addEmployee} className="mb-6" aria-label="Legg til ny ansatt">
         <div className="flex gap-2">
           <input
             type="text"
@@ -110,12 +105,14 @@ export default function EmployeeManager() {
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Navn på ansatt"
             maxLength={50}
+            aria-label="Navn på ny ansatt"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={loading || newName.trim().length < 2}
+            aria-label="Legg til ansatt"
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             Legg til

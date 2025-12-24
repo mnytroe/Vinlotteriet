@@ -1,20 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
-interface Employee {
-  id: number
-  name: string
-  isActive: boolean
-}
-
-interface Participant {
-  employeeId: number
-  tickets: number
-}
+import type { Employee, SessionParticipant } from '@/types'
 
 interface SessionSetupProps {
-  onSessionStart: (participants: Participant[]) => void
+  onSessionStart: (participants: SessionParticipant[]) => void
 }
 
 export default function SessionSetup({ onSessionStart }: SessionSetupProps) {
@@ -85,19 +75,19 @@ export default function SessionSetup({ onSessionStart }: SessionSetupProps) {
   }
 
   const handleStart = () => {
-    const participants: Participant[] = Array.from(selectedEmployees).map(
+    const sessionParticipants: SessionParticipant[] = Array.from(selectedEmployees).map(
       (id) => ({
         employeeId: id,
         tickets: tickets[id] || 1,
       })
     )
 
-    if (participants.length === 0) {
+    if (sessionParticipants.length === 0) {
       alert('Velg minst én ansatt!')
       return
     }
 
-    onSessionStart(participants)
+    onSessionStart(sessionParticipants)
   }
 
   const activeEmployees = employees.filter((e) => e.isActive)
